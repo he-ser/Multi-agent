@@ -13,6 +13,7 @@ customer_service/graph/__init__.py
 customer_service/graph/visualize.py
 customer_service/graph/workflow.py
 customer_service/memory/__init__.py
+customer_service/memory/facts.py
 customer_service/memory/redis_store.py
 customer_service/observability/__init__.py
 customer_service/observability/langsmith.py
@@ -24,6 +25,7 @@ customer_service/retrieval/document_loader.py
 customer_service/retrieval/hybrid.py
 customer_service/retrieval/knowledge_base.py
 customer_service/retrieval/schemas.py
+customer_service/scripts/cleanup_postgres.py
 customer_service/scripts/ingest_kb.py
 customer_service/services/chat.py
 multi_agent_customer_service.egg-info/PKG-INFO

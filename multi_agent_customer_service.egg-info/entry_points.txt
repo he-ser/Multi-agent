@@ -1,3 +1,4 @@
 [console_scripts]
+customer-service-cleanup = customer_service.scripts.cleanup_postgres:main
 customer-service-graph = customer_service.graph.visualize:main
 customer-service-ingest = customer_service.scripts.ingest_kb:main
