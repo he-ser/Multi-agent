@@ -1,4 +1,4 @@
-﻿from __future__ import annotations
+from __future__ import annotations
 
 import json
 
@@ -11,9 +11,19 @@ from customer_service.state import AgentState
 def rewrite_query(state: AgentState, llm) -> AgentState:
     user_message = state["user_message"]
     history = state.get("memory_summary", "")
+    structured_memory = {
+        "user_facts": state.get("user_facts", {}),
+        "ticket_context": state.get("ticket_context", {}),
+    }
     prompt = [
         SystemMessage(content=REWRITE_PROMPT),
-        HumanMessage(content=f"历史摘要：{history or '无'}\n\n最新用户问题：{user_message}"),
+        HumanMessage(
+            content=(
+                f"历史摘要：{history or '无'}\n\n"
+                f"结构化记忆：{json.dumps(structured_memory, ensure_ascii=False)}\n\n"
+                f"最新用户问题：{user_message}"
+            )
+        ),
     ]
     rewritten_query = llm.invoke(prompt).content.strip()
     trace = list(state.get("trace", [])) + [f"rewritten_query={rewritten_query}"]

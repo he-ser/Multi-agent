@@ -1,4 +1,4 @@
-﻿from __future__ import annotations
+from __future__ import annotations
 
 import os
 from dataclasses import dataclass
@@ -22,7 +22,9 @@ class Settings:
     langsmith_project: str
     langsmith_endpoint: str
     redis_url: str
+    redis_ttl_days: int
     postgres_dsn: str
+    postgres_retention_days: int
     chroma_persist_dir: Path
     chroma_collection: str
     chroma_shared_collection: str
@@ -32,6 +34,10 @@ class Settings:
     rewrite_enabled: bool
     workflow_name: str
     workflow_diagram_path: Path
+
+    @property
+    def redis_ttl_seconds(self) -> int:
+        return self.redis_ttl_days * 24 * 60 * 60
 
 
 def _to_bool(value: str | None, default: bool = False) -> bool:
@@ -52,7 +58,9 @@ def get_settings() -> Settings:
         langsmith_project=os.getenv("LANGSMITH_PROJECT", "multi-agent-customer-service"),
         langsmith_endpoint=os.getenv("LANGSMITH_ENDPOINT", "https://api.smith.langchain.com"),
         redis_url=os.getenv("REDIS_URL", "redis://localhost:6379/0"),
+        redis_ttl_days=int(os.getenv("REDIS_TTL_DAYS", "7")),
         postgres_dsn=os.getenv("POSTGRES_DSN", "postgresql://postgres:postgres@localhost:5432/customer_service"),
+        postgres_retention_days=int(os.getenv("POSTGRES_RETENTION_DAYS", "90")),
         chroma_persist_dir=Path(os.getenv("CHROMA_PERSIST_DIR", ".chroma")),
         chroma_collection=os.getenv("CHROMA_COLLECTION", "customer_service_kb"),
         chroma_shared_collection=os.getenv("CHROMA_SHARED_COLLECTION", "customer_service_shared_kb"),

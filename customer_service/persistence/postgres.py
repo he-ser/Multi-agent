@@ -71,6 +71,26 @@ class AsyncConversationRepository:
         except Exception:
             return
 
+    def cleanup_expired_turns(self) -> int:
+        if psycopg is None:
+            return 0
+        try:
+            with psycopg.connect(self.settings.postgres_dsn) as conn:
+                with conn.cursor() as cursor:
+                    # 定期删除超过保留天数的历史对话，避免表无限增长。
+                    cursor.execute(
+                        """
+                        DELETE FROM conversation_turns
+                        WHERE created_at < NOW() - (%s * INTERVAL '1 day')
+                        """,
+                        (self.settings.postgres_retention_days,),
+                    )
+                    deleted_count = cursor.rowcount or 0
+                conn.commit()
+            return deleted_count
+        except Exception:
+            return 0
+
     def close(self) -> None:
         self.stop_event.set()
         self.worker.join(timeout=1)

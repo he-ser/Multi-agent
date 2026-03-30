@@ -1,10 +1,11 @@
-﻿from __future__ import annotations
+from __future__ import annotations
 
 import json
 
 from customer_service.graph.workflow import build_customer_service_app
 from customer_service.retrieval.hybrid import HybridRetriever
 from customer_service.retrieval.schemas import KnowledgeRecord
+from customer_service.services.chat import CustomerService
 
 
 class FakeResponse:
@@ -15,6 +16,30 @@ class FakeResponse:
 class FakeLLM:
     def invoke(self, messages):
         text = "\n".join([getattr(message, "content", str(message)) for message in messages])
+        if "结构化记忆抽取器" in text:
+            return FakeResponse(
+                json.dumps(
+                    {
+                        "user_facts": {
+                            "company_name": "星河科技",
+                            "contact_name": "",
+                            "contact_email": "",
+                            "team_size": "50人",
+                            "product": "api",
+                            "deployment": "公有云",
+                        },
+                        "ticket_context": {
+                            "issue_type": "鉴权失败",
+                            "error_code": "401",
+                            "product": "api",
+                            "topic": "auth",
+                            "order_id": "",
+                            "latest_request": "排查 API 401 问题",
+                        },
+                    },
+                    ensure_ascii=False,
+                )
+            )
         if "检索查询改写器" in text:
             return FakeResponse("API key 401 error after configuration")
         if "多智能体客服路由器" in text:
@@ -37,8 +62,34 @@ class FakeLLM:
         return FakeResponse("请检查 API Key、Authorization 请求头、Base URL 以及接口权限配置。")
 
 
+class InMemoryRepository:
+    def __init__(self) -> None:
+        self.items = []
+
+    def save_turn(self, payload):
+        self.items.append(payload)
+
+
+class InMemoryConversationMemory:
+    def __init__(self) -> None:
+        self.messages = {}
+        self.structured = {}
+
+    def load_messages(self, session_id: str):
+        return list(self.messages.get(session_id, []))
+
+    def append_message(self, session_id: str, message):
+        self.messages.setdefault(session_id, []).append(message)
+
+    def load_structured_memory(self, session_id: str):
+        return dict(self.structured.get(session_id, {"user_facts": {}, "ticket_context": {}}))
+
+    def save_structured_memory(self, session_id: str, structured_memory):
+        self.structured[session_id] = structured_memory
+
+
 def test_workflow_routes_to_technical_and_returns_response():
-    app = build_customer_service_app(llm=FakeLLM(), retriever=HybridRetriever())
+    app = build_customer_service_app(llm=FakeLLM(), retriever=HybridRetriever(vector_store=None, shared_vector_store=None))
     result = app.invoke(
         {
             "session_id": "s1",
@@ -46,6 +97,8 @@ def test_workflow_routes_to_technical_and_returns_response():
             "user_message": "API 一直返回 401，我应该检查什么？",
             "messages": [{"role": "user", "content": "API 一直返回 401，我应该检查什么？"}],
             "memory_summary": "",
+            "user_facts": {},
+            "ticket_context": {},
             "trace": [],
             "metadata": {},
         }
@@ -89,3 +142,24 @@ def test_retriever_falls_back_when_topic_filter_is_too_strict():
     assert docs[0]["id"] == "tech_api_general"
     assert "domain_plan=domain+product+topic:0" in debug_steps
     assert any(step.startswith("domain_plan=domain+product:") for step in debug_steps)
+
+
+def test_customer_service_updates_structured_memory():
+    memory_store = InMemoryConversationMemory()
+    repository = InMemoryRepository()
+    llm = FakeLLM()
+    service = CustomerService(
+        app=build_customer_service_app(llm=llm, retriever=HybridRetriever(vector_store=None, shared_vector_store=None)),
+        memory_store=memory_store,
+        repository=repository,
+        retriever=HybridRetriever(vector_store=None, shared_vector_store=None),
+        memory_llm=llm,
+    )
+
+    result = service.chat(user_message="我们是星河科技，50人团队，API 返回 401。", session_id="demo", user_id="u1")
+
+    assert result["user_facts"]["company_name"] == "星河科技"
+    assert result["user_facts"]["team_size"] == "50人"
+    assert result["ticket_context"]["error_code"] == "401"
+    assert memory_store.load_structured_memory("demo")["ticket_context"]["topic"] == "auth"
+    assert repository.items

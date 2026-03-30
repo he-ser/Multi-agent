@@ -1,4 +1,4 @@
-﻿# Multi-Agent Customer Service
+# Multi-Agent Customer Service
 
 基于 `LangGraph` 的多智能体客服系统，覆盖技术、销售、售后、反馈四类专家 Agent，并集成 `RAG`、`Chroma`、`Redis`、`PostgreSQL`、`LangSmith`。
 
@@ -8,11 +8,10 @@
 - 支持从 `PDF / DOCX / XLSX / CSV / TXT / MD` 自动解析、切片并入库。
 - 支持 `share` 通用知识目录，所有智能体都会同时检索“专属知识 + 通用知识”。
 - 专属知识与通用知识分别写入两个 Chroma collection，避免过滤逻辑互相污染。
-- 统一 `AgentState` 贯穿 query rewrite、意图分类、检索增强、专家处理、质量评估与人工审核降级。
-- 混合检索：向量检索 + 关键词匹配 + 轻量重排序。
-- 会话记忆：Redis 作为热数据缓存，PostgreSQL 作为异步持久化存储。
+- 支持多轮会话摘要与结构化事实记忆并存。
+- Redis 会话消息和结构化记忆默认 7 天自动过期。
+- PostgreSQL 会话记录支持按保留天数定期清理。
 - LangSmith tracing 已接入，支持查看 LangGraph 节点执行链路、Prompt 和调用耗时。
-- 支持导出 `Mermaid` 工作流图，便于本地静态查看编排结构。
 
 ## 知识库目录
 
@@ -36,43 +35,13 @@ data/kb/raw/
     company_policy.docx
 ```
 
-目录含义：
-- `technical`：仅技术智能体知识库
-- `sales`：仅销售智能体知识库
-- `support`：仅售后智能体知识库
-- `feedback`：仅反馈智能体知识库
-- `share`：通用知识库，所有智能体可检索
-
-系统会自动映射到两个 collection：
-- 专属知识 -> `CHROMA_COLLECTION`
-- 通用知识 -> `CHROMA_SHARED_COLLECTION`
-
-## 支持格式
-
-- `PDF`：保留页码元数据
-- `DOCX`：提取段落正文
-- `XLSX`：逐个工作表提取表格文本并保留 `sheet`
-- `CSV`：按行拼接文本
-- `TXT / MD`：直接读取文本
-
-每个切片都会自动带上这些元数据中的一部分：
-- `domain`
-- `agent`
-- `source`
-- `source_path`
-- `page`
-- `sheet`
-- `chunk_index`
-- `priority`
-- `is_shared`
-
 ## 环境变量
 
 ```env
 ALIYUN_API_KEY=your-key
 ALIYUN_API_URL=https://dashscope.aliyuncs.com/compatible-mode/v1
 ALIYUN_MODEL=deepseek-r1-0528
-EMBEDDING_MODEL=text-embedding-3-small
+EMBEDDING_MODEL=text-embedding-v4
 LANGSMITH_TRACING=true
 LANGSMITH_API_KEY=your-langsmith-key
 LANGSMITH_PROJECT=multi-agent-customer-service
@@ -80,7 +49,9 @@ LANGSMITH_ENDPOINT=https://api.smith.langchain.com
 WORKFLOW_NAME=customer-service-workflow
 WORKFLOW_DIAGRAM_PATH=data/workflow/customer_service_workflow.mmd
 REDIS_URL=redis://localhost:6379/0
+REDIS_TTL_DAYS=7
 POSTGRES_DSN=postgresql://postgres:postgres@localhost:5432/customer_service
+POSTGRES_RETENTION_DAYS=90
 CHROMA_PERSIST_DIR=./.chroma
 CHROMA_COLLECTION=customer_service_kb
 CHROMA_SHARED_COLLECTION=customer_service_shared_kb
@@ -100,27 +71,9 @@ docker compose up -d
 
 ## 构建 RAG 知识库
 
-首次导入或重建时：
-
 ```powershell
-customer-service-ingest --rebuild
+python -m customer_service.scripts.ingest_kb --rebuild
 ```
-
-增量导入：
-
-```powershell
-customer-service-ingest
-```
-
-如果你新增了 `share` 目录文档，必须至少重新执行一次入库命令，才能写入通用 collection。
-
-## 导出工作流编排图
-
-```powershell
-customer-service-graph
-```
-
-默认输出到 `data/workflow/customer_service_workflow.mmd`。
 
 ## 运行项目
 
@@ -128,14 +81,26 @@ customer-service-graph
 python main.py
 ```
 
+## 数据保留策略
+
+- Redis 会话消息：默认 7 天自动过期
+- Redis 结构化记忆：默认 7 天自动过期
+- PostgreSQL 会话记录：默认保留 90 天
+
+手动清理 PostgreSQL 过期记录：
+
+```powershell
+python -m customer_service.scripts.cleanup_postgres
+```
+
+如果你重新安装了项目脚本入口，也可以使用：
+
+```powershell
+customer-service-cleanup
+```
+
 ## LangSmith 可视化
 
 1. 在 LangSmith 控制台创建 API Key，并设置 `LANGSMITH_API_KEY`。
 2. 设置 `LANGSMITH_TRACING=true`。
 3. 运行 `main.py` 或调用 `CustomerService.chat(...)` 后，即可在 `LANGSMITH_PROJECT` 对应项目中查看链路。
-
-## 运行测试
-
-```powershell
-python -m pytest tests\test_workflow.py -q
-```

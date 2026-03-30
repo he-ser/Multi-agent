@@ -28,6 +28,7 @@ dependencies = [
 [project.scripts]
 customer-service-graph = "customer_service.graph.visualize:main"
 customer-service-ingest = "customer_service.scripts.ingest_kb:main"
+customer-service-cleanup = "customer_service.scripts.cleanup_postgres:main"
 
 [tool.setuptools]
 include-package-data = true

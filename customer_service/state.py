@@ -1,4 +1,4 @@
-﻿from __future__ import annotations
+from __future__ import annotations
 
 from datetime import datetime, timezone
 from typing import Annotated, Any, Literal, TypedDict
@@ -32,6 +32,8 @@ class AgentState(TypedDict, total=False):
     topic: str
     messages: Annotated[list[dict[str, Any]], add_messages]
     memory_summary: str
+    user_facts: dict[str, Any]
+    ticket_context: dict[str, Any]
     retrieved_docs: list[RetrievedDocument]
     retrieval_filters: dict[str, Any]
     retrieval_notes: str
