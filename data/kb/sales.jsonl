@@ -1,0 +1,2 @@
+﻿{"id":"sales_enterprise_plan","content":"企业版通常面向更大规模团队，常见能力包括更高并发、专属成功经理、审计日志和 SLA 支持。最终报价应由销售根据座席规模、调用量和交付要求评估后提供。","metadata":{"domain":"sales","agent":"sales_expert","product":"enterprise","topic":"pricing","priority":8,"keywords":["企业版","报价","pricing","套餐","plan"]}}
+{"id":"sales_trial_policy","content":"试用资格通常需要结合客户类型、使用场景和预估规模判断。若客户需要正式试用，应先收集公司名称、团队规模、目标场景和预计调用量，再转销售进一步跟进。","metadata":{"domain":"sales","agent":"sales_expert","product":"platform","topic":"trial","priority":7,"keywords":["试用","trial","线索","团队规模"]}}

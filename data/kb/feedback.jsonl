@@ -1,0 +1,2 @@
+﻿{"id":"feedback_loop","content":"产品反馈会进入统一评审队列，产品团队通常会根据业务价值、实现成本和客户影响范围进行优先级排序。高频且影响面广的需求更容易进入路线图讨论。","metadata":{"domain":"feedback","agent":"feedback_expert","product":"platform","topic":"roadmap","priority":6,"keywords":["反馈","需求","路线图","roadmap"]}}
+{"id":"feedback_bug_report","content":"如果用户反馈缺陷，客服应先确认复现步骤、出现时间、影响范围、报错截图和环境信息，再提交给研发或质量团队，避免只记录模糊现象。","metadata":{"domain":"feedback","agent":"feedback_expert","product":"platform","topic":"bug","priority":8,"keywords":["缺陷","bug","复现步骤","截图"]}}

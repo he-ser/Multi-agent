@@ -1,0 +1,7 @@
+data/kb/raw/feedback/
+data/kb/raw/sales/
+data/kb/raw/share/
+data/kb/raw/support/
+data/kb/raw/technical/
+.chroma/
+.env

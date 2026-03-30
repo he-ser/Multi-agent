@@ -1,0 +1,2 @@
+﻿{"id":"support_refund_sla","content":"退款申请通常会在 1 到 3 个工作日内完成审核。如果涉及发票作废、对公付款或特殊支付渠道，处理时间可能更长。客服应先收集订单号、申请时间和支付方式。","metadata":{"domain":"support","agent":"support_expert","product":"billing","topic":"refund","priority":9,"keywords":["退款","订单号","refund","发票"]}}
+{"id":"support_account_recovery","content":"账户异常找回通常需要核验注册邮箱、最近一次登录时间和关键操作记录。涉及安全风险时，不应直接口头修改敏感信息，需引导用户走身份校验流程。","metadata":{"domain":"support","agent":"support_expert","product":"account","topic":"security","priority":8,"keywords":["账号","找回","邮箱","安全校验"]}}

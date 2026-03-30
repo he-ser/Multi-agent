@@ -1,0 +1,2 @@
+﻿{"id":"tech_api_401","content":"当接口返回 401 时，通常表示 API Key 无效、Authorization 请求头缺失、Base URL 配置错误，或者当前账号没有目标接口的访问权限。排查时应同时核对密钥、请求头、调用地址和模型授权范围。","metadata":{"domain":"technical","agent":"technical_expert","product":"api","topic":"auth","priority":10,"keywords":["401","api key","authorization","鉴权","权限"]}}
+{"id":"tech_timeout_retry","content":"如果接口出现超时，建议先确认网络连通性、网关地址和超时配置，再根据接口幂等性设计有限次数重试，并记录 request id 便于排查。","metadata":{"domain":"technical","agent":"technical_expert","product":"api","topic":"stability","priority":8,"keywords":["超时","timeout","重试","request id"]}}

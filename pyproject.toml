@@ -1,0 +1,31 @@
+﻿[project]
+name = "multi-agent-customer-service"
+version = "0.1.0"
+description = "A production-style multi-agent customer service system built with LangGraph, RAG, Chroma, Redis, PostgreSQL, and LangSmith."
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "python-dotenv>=1.0.1",
+    "pydantic>=2.7.0",
+    "langchain>=0.3.0",
+    "langchain-openai>=0.2.0",
+    "langgraph>=0.2.0",
+    "langsmith>=0.1.0",
+    "chromadb>=0.5.0",
+    "langchain-chroma>=0.1.0",
+    "pypdf>=5.0.0",
+    "python-docx>=1.1.0",
+    "openpyxl>=3.1.0",
+    "redis>=5.0.0",
+    "psycopg[binary]>=3.2.0",
+    "pytest>=8.0.0",
+]
+
+[project.scripts]
+customer-service-graph = "customer_service.graph.visualize:main"
+customer-service-ingest = "customer_service.scripts.ingest_kb:main"
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+testpaths = ["tests"]
+addopts = "-p no:cacheprovider"
