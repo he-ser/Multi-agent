@@ -1,0 +1,354 @@
+PostgreSQL 查询手册
+
+文档位置
+- 项目根目录下的本文件，用于说明如何查询 conversation_turns 表中的结构化字段。
+
+一、表结构理解
+
+当前项目的 PostgreSQL 主表是 conversation_turns。
+它既保存结构化列，也保留完整 payload JSONB。
+
+当前重点结构化字段包括：
+- id
+- session_id
+- user_id
+- intent
+- assigned_agent
+- product
+- topic
+- quality_score
+- requires_human_review
+- error_code
+- order_id
+- company_name
+- contact_email
+- team_size
+- payload
+- created_at
+
+其中：
+- 结构化列适合统计、筛选、聚合
+- payload 适合补充查看整轮上下文
+
+二、连接数据库
+
+如果你使用 Docker 启动了 PostgreSQL，默认连接方式通常是：
+
+psql "postgresql://postgres:postgres@localhost:5432/customer_service"
+
+如果你在 PowerShell 里通过 Docker 进入容器：
+
+docker exec -it cs-postgres psql -U postgres -d customer_service
+
+三、先看表里有什么
+
+1. 看表是否存在
+
+SELECT tablename
+FROM pg_tables
+WHERE tablename = 'conversation_turns';
+
+2. 看字段结构
+
+SELECT column_name, data_type
+FROM information_schema.columns
+WHERE table_name = 'conversation_turns'
+ORDER BY ordinal_position;
+
+3. 看最近 10 条记录
+
+SELECT id, session_id, user_id, intent, product, topic, error_code, created_at
+FROM conversation_turns
+ORDER BY created_at DESC
+LIMIT 10;
+
+四、常用查询
+
+1. 查询最近 20 条完整对话记录
+
+SELECT id, session_id, user_id, intent, assigned_agent, product, topic, quality_score,
+       requires_human_review, error_code, order_id, company_name, contact_email,
+       team_size, created_at
+FROM conversation_turns
+ORDER BY created_at DESC
+LIMIT 20;
+
+2. 查询某个 session_id 的完整会话
+
+SELECT id, session_id, user_id, intent, assigned_agent, product, topic,
+       error_code, created_at, payload
+FROM conversation_turns
+WHERE session_id = 'demo-session'
+ORDER BY created_at ASC;
+
+3. 查询某个用户的所有会话
+
+SELECT id, session_id, user_id, intent, product, topic, created_at
+FROM conversation_turns
+WHERE user_id = 'demo-user'
+ORDER BY created_at DESC;
+
+五、按业务字段筛选
+
+1. 查询 technical 类问题
+
+SELECT id, session_id, user_id, intent, product, topic, error_code, created_at
+FROM conversation_turns
+WHERE intent = 'technical'
+ORDER BY created_at DESC;
+
+2. 查询某产品线相关问题
+
+SELECT id, session_id, user_id, intent, product, topic, created_at
+FROM conversation_turns
+WHERE product = 'api'
+ORDER BY created_at DESC;
+
+3. 查询某主题问题
+
+SELECT id, session_id, user_id, intent, product, topic, created_at
+FROM conversation_turns
+WHERE topic = 'auth'
+ORDER BY created_at DESC;
+
+4. 查询某错误码问题
+
+SELECT id, session_id, user_id, error_code, product, topic, created_at
+FROM conversation_turns
+WHERE error_code = '401'
+ORDER BY created_at DESC;
+
+5. 查询某订单号相关问题
+
+SELECT id, session_id, user_id, order_id, intent, created_at
+FROM conversation_turns
+WHERE order_id = 'ORD-1001'
+ORDER BY created_at DESC;
+
+六、质量与人工审核分析
+
+1. 查询所有触发人工审核的记录
+
+SELECT id, session_id, user_id, intent, product, topic, quality_score,
+       requires_human_review, created_at
+FROM conversation_turns
+WHERE requires_human_review = TRUE
+ORDER BY created_at DESC;
+
+2. 查询低分回复
+
+SELECT id, session_id, user_id, intent, quality_score, created_at
+FROM conversation_turns
+WHERE quality_score IS NOT NULL
+  AND quality_score <= 3
+ORDER BY created_at DESC;
+
+3. 统计各意图平均质量分
+
+SELECT intent,
+       COUNT(*) AS total_count,
+       AVG(quality_score) AS avg_quality_score
+FROM conversation_turns
+WHERE quality_score IS NOT NULL
+GROUP BY intent
+ORDER BY total_count DESC;
+
+七、客户信息分析
+
+1. 查询某公司相关记录
+
+SELECT id, session_id, company_name, contact_email, team_size, intent, created_at
+FROM conversation_turns
+WHERE company_name = '星河科技'
+ORDER BY created_at DESC;
+
+2. 查询有联系方式的记录
+
+SELECT id, session_id, company_name, contact_email, created_at
+FROM conversation_turns
+WHERE contact_email IS NOT NULL
+  AND contact_email <> ''
+ORDER BY created_at DESC;
+
+3. 查询某团队规模的客户记录
+
+SELECT id, session_id, company_name, team_size, intent, created_at
+FROM conversation_turns
+WHERE team_size = '50人'
+ORDER BY created_at DESC;
+
+八、统计报表类查询
+
+1. 各意图问题数量
+
+SELECT intent, COUNT(*) AS total_count
+FROM conversation_turns
+GROUP BY intent
+ORDER BY total_count DESC;
+
+2. 各产品线问题数量
+
+SELECT product, COUNT(*) AS total_count
+FROM conversation_turns
+WHERE product IS NOT NULL
+  AND product <> ''
+GROUP BY product
+ORDER BY total_count DESC;
+
+3. 各 topic 数量
+
+SELECT topic, COUNT(*) AS total_count
+FROM conversation_turns
+WHERE topic IS NOT NULL
+  AND topic <> ''
+GROUP BY topic
+ORDER BY total_count DESC;
+
+4. 各错误码出现次数
+
+SELECT error_code, COUNT(*) AS total_count
+FROM conversation_turns
+WHERE error_code IS NOT NULL
+  AND error_code <> ''
+GROUP BY error_code
+ORDER BY total_count DESC;
+
+5. 每日会话记录数量
+
+SELECT DATE(created_at) AS day, COUNT(*) AS total_count
+FROM conversation_turns
+GROUP BY DATE(created_at)
+ORDER BY day DESC;
+
+九、查看 payload JSONB 中的原始内容
+
+虽然已有结构化列，但 payload 中仍保留完整上下文。
+
+1. 只看最终回复
+
+SELECT id,
+       payload ->> 'final_response' AS final_response,
+       created_at
+FROM conversation_turns
+ORDER BY created_at DESC
+LIMIT 20;
+
+2. 看改写后的检索 query
+
+SELECT id,
+       payload ->> 'rewritten_query' AS rewritten_query,
+       created_at
+FROM conversation_turns
+ORDER BY created_at DESC
+LIMIT 20;
+
+3. 看 trace
+
+SELECT id,
+       payload -> 'trace' AS trace,
+       created_at
+FROM conversation_turns
+ORDER BY created_at DESC
+LIMIT 20;
+
+4. 看结构化记忆快照
+
+SELECT id,
+       payload -> 'user_facts' AS user_facts,
+       payload -> 'ticket_context' AS ticket_context,
+       created_at
+FROM conversation_turns
+ORDER BY created_at DESC
+LIMIT 20;
+
+十、组合查询示例
+
+1. 查询 API 鉴权问题且错误码为 401 的记录
+
+SELECT id, session_id, user_id, intent, product, topic, error_code, created_at
+FROM conversation_turns
+WHERE intent = 'technical'
+  AND product = 'api'
+  AND topic = 'auth'
+  AND error_code = '401'
+ORDER BY created_at DESC;
+
+2. 查询某公司最近的 technical 问题
+
+SELECT id, session_id, company_name, intent, product, topic, error_code, created_at
+FROM conversation_turns
+WHERE company_name = '星河科技'
+  AND intent = 'technical'
+ORDER BY created_at DESC;
+
+3. 查询需要人工审核且属于 support 的记录
+
+SELECT id, session_id, user_id, intent, quality_score, requires_human_review, created_at
+FROM conversation_turns
+WHERE intent = 'support'
+  AND requires_human_review = TRUE
+ORDER BY created_at DESC;
+
+十一、排查建议
+
+1. 如果查不到数据
+- 先确认主程序是否实际跑过
+- 确认 PostgreSQL 是否启动
+- 确认连接的是 customer_service 数据库
+- 查一下总数：
+
+SELECT COUNT(*) FROM conversation_turns;
+
+2. 如果结构化字段为空
+- 说明该轮对话没有成功抽取到该字段
+- 或者是旧数据在结构化字段上线前写入的
+- 可以去 payload 里看完整内容是否存在
+
+3. 如果只想看新数据
+- 因为结构化列是后来增加的，建议按 created_at 过滤最近记录
+
+示例：
+SELECT *
+FROM conversation_turns
+WHERE created_at >= NOW() - INTERVAL '1 day'
+ORDER BY created_at DESC;
+
+十二、后续可扩展方向
+
+如果后面你继续扩展 PostgreSQL 结构化设计，最值得增加的列包括：
+- issue_type
+- deployment
+- latest_request
+- session_status
+- review_reason
+- retrieval_hit_count
+
+如果这些字段将来被提升为列，查询报表会更方便。
+
+十三、推荐的日常查询模板
+
+最近一周 technical 问题：
+
+SELECT id, session_id, product, topic, error_code, created_at
+FROM conversation_turns
+WHERE intent = 'technical'
+  AND created_at >= NOW() - INTERVAL '7 days'
+ORDER BY created_at DESC;
+
+最近一周人工审核问题：
+
+SELECT id, session_id, intent, product, quality_score, created_at
+FROM conversation_turns
+WHERE requires_human_review = TRUE
+  AND created_at >= NOW() - INTERVAL '7 days'
+ORDER BY created_at DESC;
+
+最近一周 401 问题：
+
+SELECT id, session_id, company_name, product, topic, error_code, created_at
+FROM conversation_turns
+WHERE error_code = '401'
+  AND created_at >= NOW() - INTERVAL '7 days'
+ORDER BY created_at DESC;
+
+文档结束。

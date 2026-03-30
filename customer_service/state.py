@@ -34,6 +34,8 @@ class AgentState(TypedDict, total=False):
     memory_summary: str
     user_facts: dict[str, Any]
     ticket_context: dict[str, Any]
+    user_facts_meta: dict[str, Any]
+    ticket_context_meta: dict[str, Any]
     retrieved_docs: list[RetrievedDocument]
     retrieval_filters: dict[str, Any]
     retrieval_notes: str

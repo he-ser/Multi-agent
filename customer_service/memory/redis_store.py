@@ -46,7 +46,6 @@ class RedisConversationMemory:
             key = self._key(session_id)
             self.client.rpush(key, json.dumps(message, ensure_ascii=False))
             self.client.ltrim(key, -self.settings.max_history_messages, -1)
-            # 每次写入都刷新 TTL，让活跃会话持续保留，不活跃会话在 7 天后自动过期。
             self.client.expire(key, self.settings.redis_ttl_seconds)
         except Exception:
             self.client = None
@@ -63,6 +62,8 @@ class RedisConversationMemory:
             return {
                 "user_facts": dict(payload.get("user_facts", {})),
                 "ticket_context": dict(payload.get("ticket_context", {})),
+                "user_facts_meta": dict(payload.get("user_facts_meta", {})),
+                "ticket_context_meta": dict(payload.get("ticket_context_meta", {})),
             }
         except Exception:
             self.client = None
@@ -72,6 +73,8 @@ class RedisConversationMemory:
         payload = {
             "user_facts": dict(structured_memory.get("user_facts", {})),
             "ticket_context": dict(structured_memory.get("ticket_context", {})),
+            "user_facts_meta": dict(structured_memory.get("user_facts_meta", {})),
+            "ticket_context_meta": dict(structured_memory.get("ticket_context_meta", {})),
         }
         if self.client is None:
             self._fallback_structured[session_id] = payload
@@ -90,7 +93,7 @@ class RedisConversationMemory:
 
     @staticmethod
     def _empty_structured_memory() -> dict[str, Any]:
-        return {"user_facts": {}, "ticket_context": {}}
+        return {"user_facts": {}, "ticket_context": {}, "user_facts_meta": {}, "ticket_context_meta": {}}
 
     @staticmethod
     def _key(session_id: str) -> str:

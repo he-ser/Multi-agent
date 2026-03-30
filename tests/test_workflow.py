@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 
 from customer_service.graph.workflow import build_customer_service_app
+from customer_service.memory.facts import merge_memory
 from customer_service.retrieval.hybrid import HybridRetriever
 from customer_service.retrieval.schemas import KnowledgeRecord
 from customer_service.services.chat import CustomerService
@@ -23,19 +24,19 @@ class FakeLLM:
                         "user_facts": {
                             "company_name": "星河科技",
                             "contact_name": "",
-                            "contact_email": "",
+                            "contact_email": "ops@xinghe.ai",
                             "team_size": "50人",
                             "product": "api",
-                            "deployment": "公有云",
+                            "deployment": "公有云"
                         },
                         "ticket_context": {
                             "issue_type": "鉴权失败",
                             "error_code": "401",
                             "product": "api",
                             "topic": "auth",
-                            "order_id": "",
-                            "latest_request": "排查 API 401 问题",
-                        },
+                            "order_id": "ORD-1001",
+                            "latest_request": "排查 API 401 问题"
+                        }
                     },
                     ensure_ascii=False,
                 )
@@ -50,7 +51,7 @@ class FakeLLM:
                         "confidence": 0.93,
                         "reason": "这是一个 API 鉴权报错问题",
                         "product": "api",
-                        "topic": "auth",
+                        "topic": "auth"
                     },
                     ensure_ascii=False,
                 )
@@ -82,7 +83,7 @@ class InMemoryConversationMemory:
         self.messages.setdefault(session_id, []).append(message)
 
     def load_structured_memory(self, session_id: str):
-        return dict(self.structured.get(session_id, {"user_facts": {}, "ticket_context": {}}))
+        return dict(self.structured.get(session_id, {"user_facts": {}, "ticket_context": {}, "user_facts_meta": {}, "ticket_context_meta": {}}))
 
     def save_structured_memory(self, session_id: str, structured_memory):
         self.structured[session_id] = structured_memory
@@ -99,6 +100,8 @@ def test_workflow_routes_to_technical_and_returns_response():
             "memory_summary": "",
             "user_facts": {},
             "ticket_context": {},
+            "user_facts_meta": {},
+            "ticket_context_meta": {},
             "trace": [],
             "metadata": {},
         }
@@ -144,7 +147,7 @@ def test_retriever_falls_back_when_topic_filter_is_too_strict():
     assert any(step.startswith("domain_plan=domain+product:") for step in debug_steps)
 
 
-def test_customer_service_updates_structured_memory():
+def test_customer_service_updates_structured_memory_and_repository_fields():
     memory_store = InMemoryConversationMemory()
     repository = InMemoryRepository()
     llm = FakeLLM()
@@ -159,7 +162,67 @@ def test_customer_service_updates_structured_memory():
     result = service.chat(user_message="我们是星河科技，50人团队，API 返回 401。", session_id="demo", user_id="u1")
 
     assert result["user_facts"]["company_name"] == "星河科技"
-    assert result["user_facts"]["team_size"] == "50人"
+    assert result["user_facts_meta"]["company_name"]["source_turn"] == 1
     assert result["ticket_context"]["error_code"] == "401"
-    assert memory_store.load_structured_memory("demo")["ticket_context"]["topic"] == "auth"
+    assert result["ticket_context_meta"]["error_code"]["source_turn"] == 1
+    assert memory_store.load_structured_memory("demo")["ticket_context_meta"]["topic"]["source_turn"] == 1
     assert repository.items
+    saved = repository.items[0]
+    assert saved["product"] == "api"
+    assert saved["topic"] == "auth"
+    assert saved["error_code"] == "401"
+    assert saved["order_id"] == "ORD-1001"
+    assert saved["company_name"] == "星河科技"
+    assert saved["contact_email"] == "ops@xinghe.ai"
+    assert saved["team_size"] == "50人"
+    assert saved["user_facts_meta"]["company_name"]["source_turn"] == 1
+
+
+def test_merge_memory_applies_validation_and_update_rules():
+    existing = {
+        "user_facts": {
+            "company_name": "星河科技有限公司",
+            "contact_email": "ops@xinghe.ai",
+            "team_size": "50人",
+            "product": "api",
+        },
+        "ticket_context": {
+            "error_code": "E1001",
+            "order_id": "ORD-9999",
+            "topic": "auth",
+        },
+        "user_facts_meta": {"company_name": {"updated_at": "2026-03-30T00:00:00+00:00", "source_turn": 1}},
+        "ticket_context_meta": {"order_id": {"updated_at": "2026-03-30T00:00:00+00:00", "source_turn": 1}},
+    }
+    updates = {
+        "user_facts": {
+            "company_name": "星河",
+            "contact_email": "invalid-email",
+            "team_size": "80人",
+            "product": "unknown-product",
+            "contact_name": "张三",
+            "unexpected": "should_drop",
+        },
+        "ticket_context": {
+            "error_code": "401",
+            "order_id": "1",
+            "topic": "invalid-topic",
+            "latest_request": "请尽快帮我排查 API 鉴权失败问题，影响今天上线。",
+        },
+    }
+
+    merged = merge_memory(existing, updates, source_turn=2, updated_at="2026-03-31T00:00:00+00:00")
+
+    assert merged["user_facts"]["company_name"] == "星河科技有限公司"
+    assert merged["user_facts"]["contact_email"] == "ops@xinghe.ai"
+    assert merged["user_facts"]["team_size"] == "80人"
+    assert merged["user_facts"]["product"] == "api"
+    assert merged["user_facts"]["contact_name"] == "张三"
+    assert "unexpected" not in merged["user_facts"]
+    assert merged["ticket_context"]["error_code"] == "401"
+    assert merged["ticket_context"]["order_id"] == "ORD-9999"
+    assert merged["ticket_context"]["topic"] == "auth"
+    assert merged["ticket_context"]["latest_request"].startswith("请尽快帮我排查")
+    assert merged["user_facts_meta"]["team_size"]["source_turn"] == 2
+    assert merged["ticket_context_meta"]["error_code"]["source_turn"] == 2
+    assert merged["ticket_context_meta"]["order_id"]["source_turn"] == 1
