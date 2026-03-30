@@ -21,4 +21,9 @@ def build_embeddings() -> OpenAIEmbeddings:
         model=settings.embedding_model,
         api_key=settings.openai_api_key,
         base_url=settings.openai_base_url,
+        # DashScope-compatible embedding endpoints expect raw strings, not token ids.
+        tiktoken_enabled=False,
+        check_embedding_ctx_length=False,
+        # DashScope limits a single embedding batch to at most 10 inputs.
+        chunk_size=10,
     )

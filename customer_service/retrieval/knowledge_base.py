@@ -1,4 +1,4 @@
-﻿from __future__ import annotations
+from __future__ import annotations
 
 import json
 from pathlib import Path
@@ -39,6 +39,11 @@ def _default_raw_dir() -> Path:
     return Path("data/kb/raw")
 
 
+def _read_jsonl_lines(file_path: Path) -> list[str]:
+    text = file_path.read_text(encoding="utf-8-sig")
+    return [line.strip() for line in text.splitlines() if line.strip()]
+
+
 def load_knowledge_records(
     kb_dir: str | Path | None = None,
     raw_dir: str | Path | None = None,
@@ -49,10 +54,7 @@ def load_knowledge_records(
 
     if base_dir.exists():
         for file_path in sorted(base_dir.glob("*.jsonl")):
-            for line in file_path.read_text(encoding="utf-8").splitlines():
-                line = line.strip()
-                if not line:
-                    continue
+            for line in _read_jsonl_lines(file_path):
                 payload = json.loads(line)
                 metadata = dict(payload.get("metadata", {}))
                 metadata.setdefault("source", file_path.name)

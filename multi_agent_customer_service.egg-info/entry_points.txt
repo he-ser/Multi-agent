@@ -1,0 +1,3 @@
+[console_scripts]
+customer-service-graph = customer_service.graph.visualize:main
+customer-service-ingest = customer_service.scripts.ingest_kb:main

@@ -1,4 +1,4 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 from datetime import datetime, timezone
 from typing import Annotated, Any, Literal, TypedDict
@@ -28,6 +28,8 @@ class AgentState(TypedDict, total=False):
     intent_confidence: float
     assigned_agent: ExpertAgentName
     routing_reason: str
+    product: str
+    topic: str
     messages: Annotated[list[dict[str, Any]], add_messages]
     memory_summary: str
     retrieved_docs: list[RetrievedDocument]

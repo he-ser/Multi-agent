@@ -1,4 +1,8 @@
-﻿[project]
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
 name = "multi-agent-customer-service"
 version = "0.1.0"
 description = "A production-style multi-agent customer service system built with LangGraph, RAG, Chroma, Redis, PostgreSQL, and LangSmith."
@@ -24,6 +28,13 @@ dependencies = [
 [project.scripts]
 customer-service-graph = "customer_service.graph.visualize:main"
 customer-service-ingest = "customer_service.scripts.ingest_kb:main"
+
+[tool.setuptools]
+include-package-data = true
+
+[tool.setuptools.packages.find]
+include = ["customer_service*"]
+exclude = ["data*", "tests*"]
 
 [tool.pytest.ini_options]
 pythonpath = ["."]

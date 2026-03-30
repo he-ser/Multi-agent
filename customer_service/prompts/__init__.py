@@ -4,13 +4,18 @@
 - support：退款、订单、账号问题、售后处理
 - feedback：建议、投诉、功能反馈、产品评价
 
+同时请尽量提取两个检索过滤字段：
+- product：例如 api、enterprise、billing、account、platform；如果无法判断则返回空字符串
+- topic：例如 auth、pricing、refund、security、roadmap；如果无法判断则返回空字符串
+
 要求：
 1. 只返回 JSON。
 2. 不要输出代码块。
 3. reason 用简短中文说明判断依据。
+4. product 和 topic 只返回简短英文标识或空字符串。
 
 返回格式：
-{"intent":"technical|sales|support|feedback|unknown","confidence":0.0,"reason":"简短原因"}
+{"intent":"technical|sales|support|feedback|unknown","confidence":0.0,"reason":"简短原因","product":"","topic":""}
 """
 
 REWRITE_PROMPT = """你是一个检索查询改写器。请将用户最新问题改写成适合知识库检索的独立查询语句。

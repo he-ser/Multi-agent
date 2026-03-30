@@ -1,4 +1,4 @@
-﻿from __future__ import annotations
+from __future__ import annotations
 
 import argparse
 from pathlib import Path
@@ -37,9 +37,26 @@ def _load_existing_ids(store: Chroma) -> set[str]:
         return set()
 
 
+def _sanitize_metadata(metadata: dict[str, object]) -> dict[str, object]:
+    sanitized: dict[str, object] = {}
+    for key, value in metadata.items():
+        if value is None:
+            continue
+        if isinstance(value, list):
+            if not value:
+                continue
+            sanitized[key] = ", ".join(str(item) for item in value)
+            continue
+        if isinstance(value, (str, int, float, bool)):
+            sanitized[key] = value
+            continue
+        sanitized[key] = str(value)
+    return sanitized
+
+
 def _add_records(store: Chroma, records, existing_ids: set[str]) -> int:
     docs = [
-        Document(page_content=record.content, metadata={"id": record.id, **record.metadata})
+        Document(page_content=record.content, metadata={"id": record.id, **_sanitize_metadata(record.metadata)})
         for record in records
         if record.id not in existing_ids
     ]

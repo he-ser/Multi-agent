@@ -29,11 +29,13 @@ def classify_intent(state: AgentState, llm) -> AgentState:
     try:
         data = json.loads(raw)
     except json.JSONDecodeError:
-        data = {"intent": "unknown", "confidence": 0.0, "reason": f"invalid_router_output:{raw}"}
+        data = {"intent": "unknown", "confidence": 0.0, "reason": f"invalid_router_output:{raw}", "product": "", "topic": ""}
 
     intent = data.get("intent", "unknown")
     confidence = float(data.get("confidence", 0.0))
     reason = data.get("reason", "")
+    product = str(data.get("product", "") or "").strip().lower()
+    topic = str(data.get("topic", "") or "").strip().lower()
     route_map = {
         "technical": "technical_expert",
         "sales": "sales_expert",
@@ -41,12 +43,14 @@ def classify_intent(state: AgentState, llm) -> AgentState:
         "feedback": "feedback_expert",
         "unknown": "support_expert",
     }
-    trace = list(state.get("trace", [])) + [f"intent={intent},confidence={confidence:.2f}"]
+    trace = list(state.get("trace", [])) + [f"intent={intent},confidence={confidence:.2f},product={product or '-'},topic={topic or '-'}"]
     return {
         "intent": intent,
         "intent_confidence": confidence,
         "routing_reason": reason,
         "assigned_agent": route_map.get(intent, "support_expert"),
+        "product": product,
+        "topic": topic,
         "trace": trace,
     }
 
@@ -56,5 +60,9 @@ def build_retrieval_filters(state: AgentState) -> AgentState:
     filters = {}
     if intent != "unknown":
         filters["domain"] = intent
+    if state.get("product"):
+        filters["product"] = state["product"]
+    if state.get("topic"):
+        filters["topic"] = state["topic"]
     trace = list(state.get("trace", [])) + [f"filters={filters}"]
     return {"retrieval_filters": filters, "trace": trace}
