@@ -5,10 +5,12 @@ from typing import Iterable
 
 from langchain_core.documents import Document
 
-try:
+from typing import TYPE_CHECKING,Any
+
+if TYPE_CHECKING:
     from langchain_chroma import Chroma
-except Exception:  # pragma: no cover
-    Chroma = None
+else :  # pragma: no cover
+    Chroma = Any
 
 from customer_service.config import get_settings
 from customer_service.llm import build_embeddings
